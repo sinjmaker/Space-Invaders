@@ -1,3 +1,8 @@
+// alienTexture1 = loadTexture(renderer, "mouetteDB.BMP");
+// alienTexture2 = loadTexture(renderer, "mouetteDH.BMP");
+// alienTexture3 = loadTexture(renderer, "mouetteGB.BMP");
+// alienTexture4 = loadTexture(renderer, "mouetteGH.BMP");
+
 //gcc -Wall main5.c -o main -lSDL2
 //./main
 
@@ -15,7 +20,7 @@
 #define FIRE_CHANCE 0.01
 #define PLAYER_LASER_SPEED -15
 #define PLAYER_SPEED 10
-#define MAX_PLAYER_LIVES 3
+#define MAX_PLAYER_LIVES 30
 
 typedef struct {
     int x, y;
@@ -47,6 +52,115 @@ bool movingLeft = false;
 bool movingRight = false;
 
 SDL_Texture *alienTexture = NULL;
+SDL_Texture *alienTexture1 = NULL;
+SDL_Texture *alienTexture2 = NULL;
+SDL_Texture *alienTexture3 = NULL;
+SDL_Texture *alienTexture4 = NULL;
+int nombre = 1;
+SDL_Texture *persoTexture = NULL;
+SDL_Texture *fondTexture = NULL;
+SDL_Texture *cloudTexture = NULL;
+
+int nombre_de_decente=0;
+
+
+typedef struct {
+    int x, y;
+    int width, height;
+    bool active;
+    int targetColumn;  // Colonne cible
+    enum {MOVING_TO_TARGET, REVIVING, LEAVING} state;
+} Cloud;
+
+Cloud revivalCloud = {0, 0, 0, 0, false, -1, MOVING_TO_TARGET};
+
+
+typedef enum {
+    MODE_KILL_THEM_ALL,
+    MODE_FFA
+} GameMode;
+
+void initCloud() {
+    revivalCloud.width = screenWidth / 10;
+    revivalCloud.height = screenHeight / 15;
+    revivalCloud.active = false;
+}
+
+
+int findDenseDeadZone() {
+    int maxDead = 0, targetColumn = -1;
+    for (int j = 0; j < ALIEN_COLUMNS; j++) {
+        int deadCount = 0;
+        for (int i = 0; i < ALIEN_ROWS; i++) {
+            if (!aliens[i][j].alive) {
+                deadCount++;
+            }
+        }
+        if (deadCount > maxDead) {
+            maxDead = deadCount;
+            targetColumn = j;
+        }
+    }
+    return (maxDead > 2) ? targetColumn : -1;  // Au moins 3 morts nécessaires
+}
+
+void spawnCloud() {
+    if (!revivalCloud.active && (rand() / (double)RAND_MAX) < 0.001) {  // 0.1% de chance par frame
+        int targetColumn = findDenseDeadZone();
+        if (targetColumn != -1) {
+            revivalCloud.x = aliens[1][targetColumn].x;
+            revivalCloud.y = -revivalCloud.height;  // Commence en haut de l'écran
+            revivalCloud.width = screenWidth / 10;
+            revivalCloud.height = screenHeight / 15;
+            revivalCloud.active = true;
+            revivalCloud.targetColumn = targetColumn;
+            revivalCloud.state = MOVING_TO_TARGET;
+        }
+    }
+}
+
+
+void updateCloud() {
+    if (revivalCloud.active) {
+        revivalCloud.x = aliens[1][revivalCloud.targetColumn].x;
+        switch (revivalCloud.state) {
+            case MOVING_TO_TARGET:
+                // Déplacement vers la colonne cible
+                revivalCloud.y += 5;  // Descend lentement
+                if (revivalCloud.y >= (nombre_de_decente * ((3*alienHeight) / 4) + (ALIEN_ROWS * (alienHeight + 10)))) {
+                    revivalCloud.state = REVIVING;
+                }
+                break;
+
+            case REVIVING:
+                // Réanimer les oiseaux morts dans la colonne cible
+                for (int i = 0; i < ALIEN_ROWS; i++) {
+                    if (!aliens[i][revivalCloud.targetColumn].alive) {
+                        aliens[i][revivalCloud.targetColumn].alive = true;
+                    }
+                }
+                revivalCloud.state = LEAVING;
+                break;
+
+            case LEAVING:
+                // Le nuage repart vers le haut
+                revivalCloud.y -= 5;  // Remonte lentement
+                if (revivalCloud.y + revivalCloud.height < 0) {
+                    revivalCloud.active = false;
+                }
+                break;
+        }
+    }
+}
+
+
+void drawCloud(SDL_Renderer *renderer) {
+    if (revivalCloud.active) {
+        SDL_Rect cloudRect = {revivalCloud.x, revivalCloud.y, revivalCloud.width, revivalCloud.height};
+        SDL_RenderCopy(renderer, cloudTexture, NULL, &cloudRect);
+    }
+}
+
 
 
 void initAliens() {
@@ -71,7 +185,7 @@ void initAliens() {
 
 void initPlayerShip() {
     playerShip.width = screenWidth / 15;
-    playerShip.height = screenHeight / 20;
+    playerShip.height = screenHeight / 10;
     playerShip.x = screenWidth / 2 - playerShip.width / 2;
     playerShip.y = screenHeight - playerShip.height - 10;
     playerShip.lives = MAX_PLAYER_LIVES;
@@ -95,9 +209,8 @@ void drawAliens(SDL_Renderer *renderer) {
 
 
 void drawPlayerShip(SDL_Renderer *renderer) {
-    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
     SDL_Rect playerRect = {playerShip.x, playerShip.y, playerShip.width, playerShip.height};
-    SDL_RenderFillRect(renderer, &playerRect);
+    SDL_RenderCopy(renderer, persoTexture, NULL, &playerRect);
 
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
     for (int i = 0; i < playerShip.lives; i++) {
@@ -107,7 +220,7 @@ void drawPlayerShip(SDL_Renderer *renderer) {
 }
 
 void drawLasers(SDL_Renderer *renderer) {
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
     for (int i = 0; i < ALIEN_COLUMNS; i++) {
         if (alienLasers[i].active) {
             SDL_Rect laserRect = {alienLasers[i].x, alienLasers[i].y, LASER_WIDTH, LASER_HEIGHT};
@@ -211,6 +324,7 @@ void updateAliens(int *offsetY) {
     }
 
     if (needToDescend) {
+        nombre_de_decente++;
         direction *= -1;
         *offsetY += alienHeight;
         for (int i = 0; i < ALIEN_ROWS; i++) {
@@ -218,11 +332,33 @@ void updateAliens(int *offsetY) {
                 aliens[i][j].y += (3*alienHeight) / 4;
             }
         }
+        if(nombre == 1 || nombre==2){
+            nombre=3;
+        }else{
+            nombre=1;
+        }
         moveDelayDynamic=moveDelayDynamic-10;
     } else {
         for (int i = 0; i < ALIEN_ROWS; i++) {
             for (int j = 0; j < ALIEN_COLUMNS; j++) {
                 aliens[i][j].x += direction * 10;
+            }
+        }
+        if(direction == 1){
+            if (nombre == 1){
+                alienTexture = alienTexture2;
+                nombre = 2;
+            }else if (nombre == 2){
+                alienTexture = alienTexture1;
+                nombre = 1;
+            }
+        }else if(direction == -1){
+            if (nombre == 3){
+                alienTexture = alienTexture4;
+                nombre = 4;
+            }else if (nombre == 4){
+                alienTexture = alienTexture3;
+                nombre = 3;
             }
         }
     }
@@ -243,17 +379,17 @@ void aliensFire() {
     }
 }
 
-int toujours_vivant_toujour_la_patate(){
-    int etat = 0;
+int toujours_vivant_toujour_la_patate() {
     for (int i = 0; i < ALIEN_ROWS; i++) {
         for (int j = 0; j < ALIEN_COLUMNS; j++) {
-            if(aliens[i][j].alive == true){
-                etat=1;
+            if (aliens[i][j].alive) {
+                return 1;
             }
         }
     }
-    return etat;
+    return 0;
 }
+
 
 SDL_Texture *loadTexture(SDL_Renderer *renderer, const char *filePath) {
     SDL_Surface *surface = SDL_LoadBMP(filePath);
@@ -268,6 +404,82 @@ SDL_Texture *loadTexture(SDL_Renderer *renderer, const char *filePath) {
     }
     return texture;
 }
+
+
+GameMode chooseGameMode(SDL_Renderer *renderer) {
+    bool modeChoisi = false;
+    GameMode mode = MODE_KILL_THEM_ALL;
+
+    // Dimensions des "boutons"
+    int buttonWidth = 300;
+    int buttonHeight = 80;
+
+    // Position des boutons : centrés, avec un écart vertical
+    SDL_Rect killRect;
+    killRect.w = buttonWidth;
+    killRect.h = buttonHeight;
+    killRect.x = (screenWidth / 2) - (buttonWidth / 2);
+    killRect.y = (screenHeight / 2) - 100;
+
+    SDL_Rect ffaRect;
+    ffaRect.w = buttonWidth;
+    ffaRect.h = buttonHeight;
+    ffaRect.x = (screenWidth / 2) - (buttonWidth / 2);
+    ffaRect.y = (screenHeight / 2) + 20;
+
+    SDL_Event event;
+
+    // Simple instructions dans la console
+    printf("=== MENU SIMPLE SDL2 ===\n");
+    printf("Cliquez sur le rectangle du haut pour KILL THEM ALL\n");
+    printf("Cliquez sur le rectangle du bas pour FFA\n");
+    while (!modeChoisi) {
+        // On récupère les événements SDL
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                // Si on ferme la fenêtre, on quitte
+                SDL_Quit();
+                exit(0);
+            } else if (event.type == SDL_MOUSEBUTTONDOWN) {
+                // Gestion du clic de souris
+                int mx = event.button.x;
+                int my = event.button.y;
+                // Vérifie si on clique sur Kill Them All
+                if (mx >= killRect.x && mx <= killRect.x + killRect.w &&
+                    my >= killRect.y && my <= killRect.y + killRect.h) {
+                    // L'utilisateur a cliqué dans la zone du bouton KILL THEM ALL
+                    mode = MODE_KILL_THEM_ALL;
+                    modeChoisi = true;
+                // Vérifie si on clique sur FFA
+                } else if (mx >= ffaRect.x && mx <= ffaRect.x + ffaRect.w &&
+                           my >= ffaRect.y && my <= ffaRect.y + ffaRect.h) {
+                    // L'utilisateur a cliqué dans la zone du bouton FFA
+                    mode = MODE_FFA;
+                    modeChoisi = true;
+                }
+            }
+        }
+
+        // Efface l'écran (noir)
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+
+        // Dessine le bouton KILL (gris clair)
+        SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+        SDL_RenderFillRect(renderer, &killRect);
+
+        // Dessine le bouton FFA (gris clair)
+        SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+        SDL_RenderFillRect(renderer, &ffaRect);
+
+        // Affiche le rendu (mise à jour de la fenêtre)
+        SDL_RenderPresent(renderer);
+        SDL_Delay(16);
+    }
+
+    return mode;
+}
+
 
 int main(int argc, char *argv[]) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -302,6 +514,13 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    GameMode gameMode = chooseGameMode(renderer);
+    if (gameMode == MODE_KILL_THEM_ALL) {
+        printf("Mode choisi : KILL THEM ALL\n");
+    } else {
+        printf("Mode choisi : FFA\n");
+    }
+
     srand(time(NULL));
     initAliens();
     initPlayerShip();
@@ -311,14 +530,16 @@ int main(int argc, char *argv[]) {
     Uint32 lastMoveTime = SDL_GetTicks();
     int offsetY = 0;
 
-    alienTexture = loadTexture(renderer, "3.BMP");
-    if (!alienTexture) {
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 1;
-    }
+    cloudTexture = loadTexture(renderer, "nuage.BMP");
 
+    alienTexture1 = loadTexture(renderer, "mouetteDB.BMP");
+    alienTexture2 = loadTexture(renderer, "mouetteDH.BMP");
+    alienTexture3 = loadTexture(renderer, "mouetteGB.BMP");
+    alienTexture4 = loadTexture(renderer, "mouetteGH.BMP");
+
+    persoTexture = loadTexture(renderer, "tire.BMP");
+
+    fondTexture = loadTexture(renderer, "fond_pleine.BMP");
 
     while (running) {
         while (SDL_PollEvent(&event)) {
@@ -337,13 +558,17 @@ int main(int argc, char *argv[]) {
         handlePlayerMovement();
         updateLasers();
         aliensFire();
+        spawnCloud();
+        updateCloud();
 
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
+        // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        // SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer, fondTexture, NULL, NULL);
 
         drawAliens(renderer);
         drawPlayerShip(renderer);
         drawLasers(renderer);
+        drawCloud(renderer);
 
         SDL_RenderPresent(renderer);
 
@@ -351,14 +576,14 @@ int main(int argc, char *argv[]) {
             printf("Game Over!\n");
             running = false;
         } else if (offsetY >= screenHeight - alienHeight) {
-            printf("Les aliens ont atteint le bas de l'écran !\n");
+            printf("Les mouettes ont atteint le bas de l'écran !\n");
             running = false;
         } else if (toujours_vivant_toujour_la_patate()==0){
-            printf("Les aliens... Ils sont morts, BRAVO !\n");
+            printf("Les mouettes... Elles sont morts, BRAVO !\n");
             running = false;
         }
 
-        SDL_Delay(10);
+        SDL_Delay(11);
     }
 
     SDL_DestroyRenderer(renderer);
