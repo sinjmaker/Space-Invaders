@@ -25,6 +25,9 @@ void handlePlayerInput(SDL_Event event) {
                     playerLaser.active = true;
                 }
                 break;
+            case SDLK_p:
+                isPaused = !isPaused;  // Basculer entre pause et reprise
+                break;
         }
     } else if (event.type == SDL_KEYUP) {
         switch (event.key.keysym.sym) {

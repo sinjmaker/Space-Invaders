@@ -10,6 +10,7 @@ int direction = 1;
 int screenWidth, screenHeight;
 int alienWidth, alienHeight;
 int moveDelayDynamic = MOVE_DELAY;
+int tempoMove = MOVE_DELAY;
 int nombre = 1;
 bool movingLeft = false;
 bool movingRight = false;
@@ -21,9 +22,15 @@ SDL_Texture *alienTexture4 = NULL;
 SDL_Texture *persoTexture = NULL;
 SDL_Texture *fondTexture = NULL;
 SDL_Texture *cloudTexture = NULL;
+SDL_Texture *pauseTexture = NULL;
 int nombre_de_decente = 0;
 int currentRound = 1;
+float nuageChance=0;
+int tempoRound = 1;
+int tempoPaquet = 1;
+float FIRE_CHANCE2 =FIRE_CHANCE;
 Cloud revivalCloud = {0, 0, 0, 0, false, -1, MOVING_TO_TARGET};
+bool isPaused = false;
 
 void initAliens() {
     alienWidth = screenWidth / (ALIEN_COLUMNS * 2);
@@ -77,7 +84,7 @@ int findDenseDeadZone() {
 }
 
 void spawnCloud() {
-    if (!revivalCloud.active && (rand() / (double)RAND_MAX) < 0.01) {
+    if (!revivalCloud.active && (rand() / (double)RAND_MAX) < nuageChance) {
         int targetColumn = findDenseDeadZone();
         if (targetColumn != -1) {
             revivalCloud.x = aliens[1][targetColumn].x;
@@ -148,13 +155,35 @@ void updateAliens(int *offsetY) {
         }
         nombre_de_decente++;
         direction *= -1;
-        *offsetY += alienHeight;
+        if (tempoRound == currentRound){
+            *offsetY += alienHeight;
+        } else{
+            tempoRound = currentRound;
+            *offsetY =0;
+        }
         for (int i = 0; i < ALIEN_ROWS; i++) {
             for (int j = 0; j < ALIEN_COLUMNS; j++) {
                 aliens[i][j].y += (3*alienHeight) / 4;
             }
         }
-        moveDelayDynamic -= 10;
+        switch (currentRound % 3) {
+            case 1:
+                if(tempoMove <= MOVE_DELAY){
+                    moveDelayDynamic -= 10;
+                }
+                break;
+            case 2:
+                if(tempoMove <= MOVE_DELAY - 40){
+                    moveDelayDynamic -= 10;
+                }
+                break;
+            case 0:
+                if(tempoMove <= MOVE_DELAY - 80){
+                    moveDelayDynamic -= 10;
+                }
+                break;
+        }
+        tempoMove -= 10;
     } else {
         for (int i = 0; i < ALIEN_ROWS; i++) {
             for (int j = 0; j < ALIEN_COLUMNS; j++) {
@@ -223,7 +252,7 @@ void aliensFire() {
     for (int col = 0; col < ALIEN_COLUMNS; col++) {
         for (int row = ALIEN_ROWS - 1; row >= 0; row--) {
             if (aliens[row][col].alive) {
-                if (!alienLasers[col].active && (rand() / (double)RAND_MAX) < FIRE_CHANCE) {
+                if (!alienLasers[col].active && (rand() / (double)RAND_MAX) < FIRE_CHANCE2) {
                     alienLasers[col].x = aliens[row][col].x + alienWidth / 2 - LASER_WIDTH / 2;
                     alienLasers[col].y = aliens[row][col].y + alienHeight;
                     alienLasers[col].active = true;
@@ -305,6 +334,33 @@ GameMode chooseGameMode(SDL_Renderer *renderer) {
     return mode;
 }
 
+// void resetAliensForNewRound() {
+//     for (int i = 0; i < ALIEN_ROWS; i++) {
+//         for (int j = 0; j < ALIEN_COLUMNS; j++) {
+//             aliens[i][j].x = j * (alienWidth + 10);
+//             aliens[i][j].y = i * (alienHeight + 10);
+//             aliens[i][j].alive = true;
+//         }
+//     }
+
+//     // Augmenter la difficulté (par exemple, réduire le délai de mouvement)
+//     moveDelayDynamic = MOVE_DELAY - (currentRound * 10); // Les aliens deviennent plus rapides
+//     if (moveDelayDynamic < 50) {
+//         moveDelayDynamic = 50; // Vitesse maximale
+//     }
+
+//     // Réinitialiser le nuage
+//     revivalCloud.active = false;
+
+//     direction = 1;
+//     // int moveDelayDynamic = MOVE_DELAY;
+//     nombre = 1;
+//     nombre_de_decente = 0;
+
+//     // Incrémenter le numéro de la manche
+//     currentRound++;
+// }
+
 void resetAliensForNewRound() {
     for (int i = 0; i < ALIEN_ROWS; i++) {
         for (int j = 0; j < ALIEN_COLUMNS; j++) {
@@ -314,20 +370,45 @@ void resetAliensForNewRound() {
         }
     }
 
-    // Augmenter la difficulté (par exemple, réduire le délai de mouvement)
-    moveDelayDynamic = MOVE_DELAY - (currentRound * 10); // Les aliens deviennent plus rapides
-    if (moveDelayDynamic < 50) {
-        moveDelayDynamic = 50; // Vitesse maximale
+    currentRound++;
+
+    switch (currentRound % 3) {
+        case 1:
+            moveDelayDynamic = MOVE_DELAY;
+            break;
+        case 2:
+            moveDelayDynamic = MOVE_DELAY - 40;
+            break;
+        case 0:
+            moveDelayDynamic = MOVE_DELAY - 80;
+            break;
     }
 
-    // Réinitialiser le nuage
+    if (moveDelayDynamic < 50) {
+        moveDelayDynamic = 50;
+    }
+
+    switch (currentRound % 3) {
+        case 1:
+            nuageChance = 0.0;
+            break;
+        case 2:
+            nuageChance = 0.001;
+            break;
+        case 0:
+            nuageChance = 0.003;
+            break;
+    }
+    if ((6*tempoPaquet)>currentRound && currentRound>(3*tempoPaquet)){
+        FIRE_CHANCE2 = FIRE_CHANCE2*1.25;
+        tempoPaquet++;
+    }
+    printf("%f\n",FIRE_CHANCE2);
+
     revivalCloud.active = false;
 
     direction = 1;
-    // int moveDelayDynamic = MOVE_DELAY;
     nombre = 1;
     nombre_de_decente = 0;
-
-    // Incrémenter le numéro de la manche
-    currentRound++;
+    tempoMove = MOVE_DELAY;
 }

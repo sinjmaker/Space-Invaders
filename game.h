@@ -10,10 +10,10 @@
 #define LASER_SPEED 10
 #define LASER_WIDTH 5
 #define LASER_HEIGHT 20
-#define FIRE_CHANCE 0.01
+#define FIRE_CHANCE 0.005  //0.01
 #define PLAYER_LASER_SPEED -15
 #define PLAYER_SPEED 10
-#define MAX_PLAYER_LIVES 30
+#define MAX_PLAYER_LIVES 5
 
 typedef struct {
     int x, y;
@@ -62,9 +62,11 @@ extern SDL_Texture *alienTexture4;
 extern SDL_Texture *persoTexture;
 extern SDL_Texture *fondTexture;
 extern SDL_Texture *cloudTexture;
+extern SDL_Texture *pauseTexture;
 extern int nombre_de_decente;
 extern Cloud revivalCloud;
 extern int currentRound;
+extern bool isPaused;
 
 void initAliens();
 void initPlayerShip();

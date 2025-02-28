@@ -63,3 +63,21 @@ SDL_Texture *loadTexture(SDL_Renderer *renderer, const char *filePath) {
     }
     return texture;
 }
+
+void drawPauseMenu(SDL_Renderer *renderer) {
+
+
+    // Afficher l'image de pause
+    if (pauseTexture) {
+        // Définir la taille et la position de l'image de pause
+        int pauseWidth = 200;  // Largeur de l'image de pause
+        int pauseHeight = 100; // Hauteur de l'image de pause
+        SDL_Rect pauseRect = {
+            screenWidth / 2 - pauseWidth / 2,  // Position X (centré)
+            screenHeight / 2 - pauseHeight / 2, // Position Y (centré)
+            pauseWidth,                        // Largeur
+            pauseHeight                         // Hauteur
+        };
+        SDL_RenderCopy(renderer, pauseTexture, NULL, &pauseRect);
+    }
+}
