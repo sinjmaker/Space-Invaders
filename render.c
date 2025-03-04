@@ -228,3 +228,75 @@ void drawScore(SDL_Renderer *renderer, TTF_Font *font) {
     SDL_DestroyTexture(textTexture);
 }
 
+void drawGameOverScreen(SDL_Renderer *renderer, TTF_Font *font) {
+    // Effacer l'écran
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);  // Fond noir
+    SDL_RenderClear(renderer);
+
+    // Préparer le texte "Game Over"
+    SDL_Color textColor = {255, 255, 255, 255};  // Texte blanc
+    SDL_Surface *gameOverSurface = TTF_RenderText_Solid(font, "Game Over", textColor);
+    if (!gameOverSurface) {
+        fprintf(stderr, "Erreur de création de la surface 'Game Over': %s\n", TTF_GetError());
+        return;
+    }
+
+    SDL_Texture *gameOverTexture = SDL_CreateTextureFromSurface(renderer, gameOverSurface);
+    SDL_FreeSurface(gameOverSurface);
+    if (!gameOverTexture) {
+        fprintf(stderr, "Erreur de création de la texture 'Game Over': %s\n", SDL_GetError());
+        return;
+    }
+
+    // Positionner "Game Over" au centre de l'écran
+    int gameOverWidth, gameOverHeight;
+    SDL_QueryTexture(gameOverTexture, NULL, NULL, &gameOverWidth, &gameOverHeight);
+    SDL_Rect gameOverRect = {
+        (screenWidth - gameOverWidth) / 2,  // Centré horizontalement
+        (screenHeight - gameOverHeight) / 3, // 1/3 de la hauteur de l'écran
+        gameOverWidth,
+        gameOverHeight
+    };
+
+    // Dessiner "Game Over"
+    SDL_RenderCopy(renderer, gameOverTexture, NULL, &gameOverRect);
+
+    // Préparer le texte du score
+    char scoreText[50];
+    snprintf(scoreText, sizeof(scoreText), "Score: %d", score);
+
+    SDL_Surface *scoreSurface = TTF_RenderText_Solid(font, scoreText, textColor);
+    if (!scoreSurface) {
+        fprintf(stderr, "Erreur de création de la surface du score: %s\n", TTF_GetError());
+        SDL_DestroyTexture(gameOverTexture);
+        return;
+    }
+
+    SDL_Texture *scoreTexture = SDL_CreateTextureFromSurface(renderer, scoreSurface);
+    SDL_FreeSurface(scoreSurface);
+    if (!scoreTexture) {
+        fprintf(stderr, "Erreur de création de la texture du score: %s\n", SDL_GetError());
+        SDL_DestroyTexture(gameOverTexture);
+        return;
+    }
+
+    // Positionner le score en dessous de "Game Over"
+    int scoreWidth, scoreHeight;
+    SDL_QueryTexture(scoreTexture, NULL, NULL, &scoreWidth, &scoreHeight);
+    SDL_Rect scoreRect = {
+        (screenWidth - scoreWidth) / 2,  // Centré horizontalement
+        gameOverRect.y + gameOverRect.h + 20, // 20 pixels en dessous de "Game Over"
+        scoreWidth,
+        scoreHeight
+    };
+
+    // Dessiner le score
+    SDL_RenderCopy(renderer, scoreTexture, NULL, &scoreRect);
+
+    // Libérer les textures
+    SDL_DestroyTexture(gameOverTexture);
+    SDL_DestroyTexture(scoreTexture);
+
+    // Mettre à jour l'écran
+    SDL_RenderPresent(renderer);
+}

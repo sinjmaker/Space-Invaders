@@ -16,5 +16,6 @@ void drawBarriers(SDL_Renderer *renderer);
 void drawTurrets(SDL_Renderer *renderer);
 void drawTurretLasers(SDL_Renderer *renderer);
 void drawScore(SDL_Renderer *renderer, TTF_Font *font);
+void drawGameOverScreen(SDL_Renderer *renderer, TTF_Font *font);
 
 #endif // RENDER_H

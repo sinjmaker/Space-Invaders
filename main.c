@@ -74,15 +74,15 @@ int main(int argc, char *argv[]) {
     Uint32 lastMoveTime = SDL_GetTicks();
     int offsetY = 0;
 
-    cloudTexture = loadTexture(renderer, "nuage.BMP");
-    alienTexture1 = loadTexture(renderer, "mouetteDB.BMP");
-    alienTexture2 = loadTexture(renderer, "mouetteDH.BMP");
-    alienTexture3 = loadTexture(renderer, "mouetteGB.BMP");
-    alienTexture4 = loadTexture(renderer, "mouetteGH.BMP");
-    persoTexture = loadTexture(renderer, "tire.BMP");
-    fondTexture = loadTexture(renderer, "fond_pleine.BMP");
-    pauseTexture = loadTexture(renderer, "pause.BMP");
-    barrierTexture = loadTexture(renderer, "barrier.BMP");
+    cloudTexture = loadTexture(renderer, "nuage.bmp");
+    alienTexture1 = loadTexture(renderer, "mouetteDB.bmp");
+    alienTexture2 = loadTexture(renderer, "mouetteDH.bmp");
+    alienTexture3 = loadTexture(renderer, "mouetteGB.bmp");
+    alienTexture4 = loadTexture(renderer, "mouetteGH.bmp");
+    persoTexture = loadTexture(renderer, "tire.bmp");
+    fondTexture = loadTexture(renderer, "fond_pleine.bmp");
+    pauseTexture = loadTexture(renderer, "pause.bmp");
+    barrierTexture = loadTexture(renderer, "barrier.bmp");
     turretTexture = loadTexture(renderer, "ruche.bmp");
     ecrousTexture = loadTexture(renderer, "ecrous.bmp");
 
@@ -144,15 +144,33 @@ int main(int argc, char *argv[]) {
         SDL_Delay(11);
     }
     
+    SDL_Color white = {255, 255, 255, 255};
+    char scoreText[100];
+    snprintf(scoreText, sizeof(scoreText), "Score final : %d", score);
+    SDL_Surface *scoreSurface = TTF_RenderText_Solid(font, scoreText, white);
+    SDL_Texture *scoreTexture = SDL_CreateTextureFromSurface(renderer, scoreSurface);
+    SDL_Rect scoreRect = {screenWidth / 2 - scoreSurface->w / 2, screenHeight / 2 - scoreSurface->h / 2, scoreSurface->w, scoreSurface->h};
+
+    SDL_RenderCopy(renderer, scoreTexture, NULL, &scoreRect);
+    SDL_RenderPresent(renderer);
+    SDL_Delay(5000);
+
+    SDL_FreeSurface(scoreSurface);
+    SDL_DestroyTexture(scoreTexture);
     TTF_CloseFont(font);
-    TTF_Quit();
-    SDL_DestroyTexture(pauseTexture);
-    SDL_DestroyTexture(barrierTexture);
-    SDL_DestroyTexture(turretTexture);
-    SDL_DestroyTexture(ecrousTexture);
+
     SDL_DestroyRenderer(renderer);
-    SDL_DestroyTexture(alienTexture);
+    SDL_DestroyTexture(alienTexture1);
+    SDL_DestroyTexture(alienTexture2);
+    SDL_DestroyTexture(alienTexture3);
+    SDL_DestroyTexture(alienTexture4);
+    SDL_DestroyTexture(persoTexture);
+    SDL_DestroyTexture(cloudTexture);
+    SDL_DestroyTexture(fondTexture);
     SDL_DestroyWindow(window);
+    TTF_Quit();
     SDL_Quit();
+  
+    
     return 0;
 }
