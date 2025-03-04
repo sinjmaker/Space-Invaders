@@ -49,6 +49,9 @@ int main(int argc, char *argv[]) {
     srand(time(NULL));
     initAliens();
     initPlayerShip();
+    initBarriers();
+    initTurrets();
+    initTurretLasers();
 
     bool running = true;
     SDL_Event event;
@@ -62,15 +65,10 @@ int main(int argc, char *argv[]) {
     alienTexture4 = loadTexture(renderer, "mouetteGH.BMP");
     persoTexture = loadTexture(renderer, "tire.BMP");
     fondTexture = loadTexture(renderer, "fond_pleine.BMP");
-
     pauseTexture = loadTexture(renderer, "pause.BMP");
-    // if (!pauseTexture) {
-    //     fprintf(stderr, "Erreur de chargement de l'image de pause.\n");
-    //     SDL_DestroyRenderer(renderer);
-    //     SDL_DestroyWindow(window);
-    //     SDL_Quit();
-    //     return 1;
-    // }
+    barrierTexture = loadTexture(renderer, "barrier.BMP");
+    turretTexture = loadTexture(renderer, "ruche.bmp");
+    ecrousTexture = loadTexture(renderer, "ecrous.bmp");
 
     while (running) {
         while (SDL_PollEvent(&event)) {
@@ -92,6 +90,8 @@ int main(int argc, char *argv[]) {
             aliensFire();
             spawnCloud();
             updateCloud();
+            updateTurrets();
+            updateTurretLasers();
         }
 
         SDL_RenderCopy(renderer, fondTexture, NULL, NULL);
@@ -99,6 +99,9 @@ int main(int argc, char *argv[]) {
         drawPlayerShip(renderer);
         drawLasers(renderer);
         drawCloud(renderer);
+        drawBarriers(renderer);
+        drawTurrets(renderer);
+        drawTurretLasers(renderer);
 
         if (isPaused) {
             drawPauseMenu(renderer);
@@ -125,6 +128,9 @@ int main(int argc, char *argv[]) {
     }
 
     SDL_DestroyTexture(pauseTexture);
+    SDL_DestroyTexture(barrierTexture);
+    SDL_DestroyTexture(turretTexture);
+    SDL_DestroyTexture(ecrousTexture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyTexture(alienTexture);
     SDL_DestroyWindow(window);

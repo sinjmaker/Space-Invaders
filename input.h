@@ -5,5 +5,6 @@
 
 void handlePlayerMovement();
 void handlePlayerInput(SDL_Event event);
+void handleMouseInput(SDL_Event event);
 
 #endif // INPUT_H

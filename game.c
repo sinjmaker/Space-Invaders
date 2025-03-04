@@ -23,6 +23,9 @@ SDL_Texture *persoTexture = NULL;
 SDL_Texture *fondTexture = NULL;
 SDL_Texture *cloudTexture = NULL;
 SDL_Texture *pauseTexture = NULL;
+SDL_Texture *barrierTexture = NULL;
+SDL_Texture *turretTexture = NULL;
+SDL_Texture *ecrousTexture = NULL;
 int nombre_de_decente = 0;
 int currentRound = 1;
 float nuageChance=0;
@@ -31,6 +34,9 @@ int tempoPaquet = 1;
 float FIRE_CHANCE2 =FIRE_CHANCE;
 Cloud revivalCloud = {0, 0, 0, 0, false, -1, MOVING_TO_TARGET};
 bool isPaused = false;
+Barrier barriers[NUM_BARRIERS];
+Turret turrets[MAX_TURRETS];
+TurretLaser turretLasers[MAX_TURRET_LASERS];
 
 void initAliens() {
     alienWidth = screenWidth / (ALIEN_COLUMNS * 2);
@@ -58,6 +64,7 @@ void initPlayerShip() {
     playerShip.x = screenWidth / 2 - playerShip.width / 2;
     playerShip.y = screenHeight - playerShip.height - 10;
     playerShip.lives = MAX_PLAYER_LIVES;
+    playerShip.ecrous = 1;
 }
 
 void initCloud() {
@@ -211,9 +218,24 @@ void updateAliens(int *offsetY) {
 }
 
 void updateLasers() {
+    // Tirs des aliens
     for (int i = 0; i < ALIEN_COLUMNS; i++) {
         if (alienLasers[i].active) {
             alienLasers[i].y += LASER_SPEED;
+
+            // Collision avec les barrières
+            for (int j = 0; j < NUM_BARRIERS; j++) {
+                if (barriers[j].health > 0 &&
+                    alienLasers[i].x < barriers[j].x + barriers[j].width &&
+                    alienLasers[i].x + LASER_WIDTH > barriers[j].x &&
+                    alienLasers[i].y < barriers[j].y + barriers[j].height && // Utiliser la hauteur active
+                    alienLasers[i].y + LASER_HEIGHT > barriers[j].y) {
+                    alienLasers[i].active = false;  // Désactiver le tir
+                    barriers[j].health--;           // Réduire les points de vie de la barrière
+                }
+            }
+
+            // Collision avec le joueur
             if (alienLasers[i].y > screenHeight) {
                 alienLasers[i].active = false;
             } else if (
@@ -227,8 +249,23 @@ void updateLasers() {
         }
     }
 
+    // Tir du joueur
     if (playerLaser.active) {
         playerLaser.y += PLAYER_LASER_SPEED;
+
+        // Collision avec les barrières
+        for (int j = 0; j < NUM_BARRIERS; j++) {
+            if (barriers[j].health > 0 &&
+                playerLaser.x < barriers[j].x + barriers[j].width &&
+                playerLaser.x + LASER_WIDTH > barriers[j].x &&
+                playerLaser.y < barriers[j].y + barriers[j].height && // Utiliser la hauteur active
+                playerLaser.y + LASER_HEIGHT > barriers[j].y) {
+                playerLaser.active = false;  // Désactiver le tir
+                barriers[j].health--;        // Réduire les points de vie de la barrière
+            }
+        }
+
+        // Collision avec les aliens
         if (playerLaser.y < 0) {
             playerLaser.active = false;
         } else {
@@ -334,33 +371,6 @@ GameMode chooseGameMode(SDL_Renderer *renderer) {
     return mode;
 }
 
-// void resetAliensForNewRound() {
-//     for (int i = 0; i < ALIEN_ROWS; i++) {
-//         for (int j = 0; j < ALIEN_COLUMNS; j++) {
-//             aliens[i][j].x = j * (alienWidth + 10);
-//             aliens[i][j].y = i * (alienHeight + 10);
-//             aliens[i][j].alive = true;
-//         }
-//     }
-
-//     // Augmenter la difficulté (par exemple, réduire le délai de mouvement)
-//     moveDelayDynamic = MOVE_DELAY - (currentRound * 10); // Les aliens deviennent plus rapides
-//     if (moveDelayDynamic < 50) {
-//         moveDelayDynamic = 50; // Vitesse maximale
-//     }
-
-//     // Réinitialiser le nuage
-//     revivalCloud.active = false;
-
-//     direction = 1;
-//     // int moveDelayDynamic = MOVE_DELAY;
-//     nombre = 1;
-//     nombre_de_decente = 0;
-
-//     // Incrémenter le numéro de la manche
-//     currentRound++;
-// }
-
 void resetAliensForNewRound() {
     for (int i = 0; i < ALIEN_ROWS; i++) {
         for (int j = 0; j < ALIEN_COLUMNS; j++) {
@@ -411,4 +421,136 @@ void resetAliensForNewRound() {
     nombre = 1;
     nombre_de_decente = 0;
     tempoMove = MOVE_DELAY;
+    playerShip.ecrous++;
+}
+
+void initBarriers() {
+    int barrierWidth = screenWidth / 20;  // Largeur d'une barrière
+    int barrierSpacing = screenWidth / (NUM_BARRIERS + 1); // Espacement entre les barrières
+
+    for (int i = 0; i < NUM_BARRIERS; i++) {
+        barriers[i].x = barrierSpacing * (i + 1) - barrierWidth / 2;
+        barriers[i].y = screenHeight - 200; // Position Y des barrières (au-dessus du joueur)
+        barriers[i].width = barrierWidth;
+        barriers[i].height = 50; // Hauteur de la zone active pour les collisions
+        barriers[i].visualHeight = screenHeight - barriers[i].y; // Hauteur visuelle jusqu'au bas de l'écran
+        barriers[i].health = 10; // Points de vie de chaque barrière
+    }
+}
+
+void reviveBarrier(int mouseX, int mouseY) {
+    for (int i = 0; i < NUM_BARRIERS; i++) {
+        if (barriers[i].health <= 0) {  // Vérifier si la barrière est détruite
+            SDL_Rect destroyedRect = {
+                barriers[i].x + barriers[i].width / 4,  // Position X du carré vert
+                barriers[i].y + barriers[i].height / 4, // Position Y du carré vert
+                barriers[i].width / 2,                 // Largeur du carré vert
+                barriers[i].visualHeight / 2           // Hauteur du carré vert
+            };
+
+            // Vérifier si le clic est dans le carré vert
+            if (mouseX >= destroyedRect.x && mouseX <= destroyedRect.x + destroyedRect.w &&
+                mouseY >= destroyedRect.y && mouseY <= destroyedRect.y + destroyedRect.h) {
+                barriers[i].health = 10;  // Réanimer la barrière
+                break;  // Sortir de la boucle après avoir réanimé une barrière
+            }
+        }
+    }
+}
+
+void initTurrets() {
+    for (int i = 0; i < MAX_TURRETS; i++) {
+        turrets[i].active = false;
+    }
+}
+
+void initTurretLasers() {
+    for (int i = 0; i < MAX_TURRET_LASERS; i++) {
+        turretLasers[i].active = false;  // Désactiver tous les lasers au départ
+    }
+}
+
+void createTurretLaser(int x, int y) {
+    for (int i = 0; i < MAX_TURRET_LASERS; i++) {
+        if (!turretLasers[i].active) {  // Trouver un laser inactif
+            turretLasers[i].x = x;
+            turretLasers[i].y = y;
+            turretLasers[i].active = true;
+            turretLasers[i].speed = -10;  // Vitesse du laser (vers le haut)
+            break;
+        }
+    }
+}
+
+void createTurret(int x, int y, int width, int height) {
+    for (int i = 0; i < MAX_TURRETS; i++) {
+        if (!turrets[i].active) {  // Trouver une tourelle inactive
+            turrets[i].x = x - width / 2;  // Centrer la tourelle sur la barrière
+            turrets[i].y = y;
+            turrets[i].width = width;      // Largeur de la barrière
+            turrets[i].height = screenHeight - y;  // Hauteur jusqu'au bas de l'écran
+            turrets[i].active = true;
+            turrets[i].lastShotTime = SDL_GetTicks();  // Initialiser le temps du dernier tir
+            break;
+        }
+    }
+}
+
+void updateTurrets() {
+    Uint32 currentTime = SDL_GetTicks();
+
+    for (int i = 0; i < MAX_TURRETS; i++) {
+        if (turrets[i].active) {
+            // Vérifier si la tourelle peut tirer
+            if (currentTime - turrets[i].lastShotTime > 1000) {  // Toutes les 1 seconde
+                // Trouver l'alien le plus proche dans la colonne de la tourelle
+                int targetX = turrets[i].x + turrets[i].width / 2;  // Centre de la tourelle
+                int targetY = -1;
+
+                // Parcourir les aliens de bas en haut dans la colonne correspondante
+                for (int row = ALIEN_ROWS - 1; row >= 0; row--) {
+                    int col = (targetX - aliens[row][0].x) / (alienWidth + 10);  // Trouver la colonne de l'alien
+                    if (col >= 0 && col < ALIEN_COLUMNS && aliens[row][col].alive) {
+                        targetY = aliens[row][col].y + aliens[row][col].height / 2;
+                        break;
+                    }
+                }
+
+                // Tirer un laser si un alien est trouvé
+                if (targetY != -1) {
+                    createTurretLaser(turrets[i].x + turrets[i].width / 2, turrets[i].y);
+                    turrets[i].lastShotTime = currentTime;  // Mettre à jour le temps du dernier tir
+                }
+            }
+        }
+    }
+}
+
+void updateTurretLasers() {
+    for (int i = 0; i < MAX_TURRET_LASERS; i++) {
+        if (turretLasers[i].active) {
+            // Déplacer le laser
+            turretLasers[i].y += turretLasers[i].speed;
+
+            // Vérifier les collisions avec les aliens
+            for (int row = 0; row < ALIEN_ROWS; row++) {
+                for (int col = 0; col < ALIEN_COLUMNS; col++) {
+                    if (aliens[row][col].alive &&
+                        turretLasers[i].x < aliens[row][col].x + aliens[row][col].width &&
+                        turretLasers[i].x + LASER_WIDTH > aliens[row][col].x &&
+                        turretLasers[i].y < aliens[row][col].y + aliens[row][col].height &&
+                        turretLasers[i].y + LASER_HEIGHT > aliens[row][col].y) {
+                        aliens[row][col].alive = false;  // Détruire l'alien
+                        turretLasers[i].active = false;  // Désactiver le laser
+                        break;
+                    }
+                }
+            }
+
+            // Désactiver le laser s'il sort de l'écran
+            if (turretLasers[i].y < 0) {
+                turretLasers[i].active = false;
+            }
+        }
+    }
 }
