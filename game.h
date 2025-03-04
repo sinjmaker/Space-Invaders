@@ -97,6 +97,7 @@ extern bool isPaused;
 extern Barrier barriers[NUM_BARRIERS];
 extern Turret turrets[MAX_TURRETS];
 extern TurretLaser turretLasers[MAX_TURRET_LASERS];
+extern int score;
 
 
 void initAliens();

@@ -2,6 +2,7 @@
 #include "render.h"
 #include "input.h"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -15,6 +16,21 @@ int main(int argc, char *argv[]) {
     SDL_DisplayMode displayMode;
     if (SDL_GetCurrentDisplayMode(0, &displayMode) != 0) {
         fprintf(stderr, "Erreur d'obtention des dimensions de l'écran: %s\n", SDL_GetError());
+        SDL_Quit();
+        return 1;
+    }
+
+    if (TTF_Init() == -1) {
+        fprintf(stderr, "Erreur d'initialisation de SDL_ttf: %s\n", TTF_GetError());
+        SDL_Quit();
+        return 1;
+    }
+
+    // Charger une police
+    TTF_Font *font = TTF_OpenFont("arial.ttf", 24);
+    if (!font) {
+        fprintf(stderr, "Erreur de chargement de la police: %s\n", TTF_GetError());
+        TTF_Quit();
         SDL_Quit();
         return 1;
     }
@@ -102,6 +118,7 @@ int main(int argc, char *argv[]) {
         drawBarriers(renderer);
         drawTurrets(renderer);
         drawTurretLasers(renderer);
+        drawScore(renderer, font);  // Afficher le score avec SDL_ttf
 
         if (isPaused) {
             drawPauseMenu(renderer);
@@ -126,7 +143,9 @@ int main(int argc, char *argv[]) {
 
         SDL_Delay(11);
     }
-
+    
+    TTF_CloseFont(font);
+    TTF_Quit();
     SDL_DestroyTexture(pauseTexture);
     SDL_DestroyTexture(barrierTexture);
     SDL_DestroyTexture(turretTexture);

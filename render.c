@@ -1,5 +1,8 @@
 #include "render.h"
 
+// #include <SDL2/SDL.h>
+// #include <SDL2/SDL_ttf.h>
+
 void drawAliens(SDL_Renderer *renderer) {
     for (int i = 0; i < ALIEN_ROWS; i++) {
         for (int j = 0; j < ALIEN_COLUMNS; j++) {
@@ -185,3 +188,43 @@ void drawTurretLasers(SDL_Renderer *renderer) {
         }
     }
 }
+
+void drawScore(SDL_Renderer *renderer, TTF_Font *font) {
+    char scoreText[20];
+    snprintf(scoreText, sizeof(scoreText), "Score: %d", score);
+
+    // Couleur du texte (blanc)
+    SDL_Color textColor = {255, 255, 255, 255};
+
+    // Créer une surface avec le texte
+    SDL_Surface *textSurface = TTF_RenderText_Solid(font, scoreText, textColor);
+    if (!textSurface) {
+        fprintf(stderr, "Erreur de création de la surface de texte: %s\n", TTF_GetError());
+        return;
+    }
+
+    // Créer une texture à partir de la surface
+    SDL_Texture *textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    SDL_FreeSurface(textSurface);
+    if (!textTexture) {
+        fprintf(stderr, "Erreur de création de la texture de texte: %s\n", SDL_GetError());
+        return;
+    }
+
+    // Position du score en haut à droite
+    int textWidth = 0, textHeight = 0;
+    SDL_QueryTexture(textTexture, NULL, NULL, &textWidth, &textHeight);
+    SDL_Rect textRect = {
+        screenWidth - textWidth - 20,  // 20 pixels depuis le bord droit
+        20,                            // 20 pixels depuis le haut
+        textWidth,
+        textHeight
+    };
+
+    // Dessiner la texture du texte
+    SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+
+    // Libérer la texture
+    SDL_DestroyTexture(textTexture);
+}
+

@@ -37,6 +37,7 @@ bool isPaused = false;
 Barrier barriers[NUM_BARRIERS];
 Turret turrets[MAX_TURRETS];
 TurretLaser turretLasers[MAX_TURRET_LASERS];
+int score = 0;
 
 void initAliens() {
     alienWidth = screenWidth / (ALIEN_COLUMNS * 2);
@@ -278,6 +279,7 @@ void updateLasers() {
                         playerLaser.y + LASER_HEIGHT > aliens[i][j].y) {
                         aliens[i][j].alive = false;
                         playerLaser.active = false;
+                        score += 10;
                     }
                 }
             }
