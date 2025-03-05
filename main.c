@@ -7,9 +7,8 @@
 #include <stdlib.h>
 #include <time.h>
 
-
-
-
+// gcc -Wall main.c game.c render.c input.c -o main -lSDL2 -lSDL2_ttf -lSDL2_mixer
+// ./main
 
 
 int main(int argc, char *argv[]) {
