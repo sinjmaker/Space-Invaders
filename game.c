@@ -367,13 +367,13 @@ GameMode chooseGameMode(SDL_Renderer *renderer) {
     }
     
     // Chargement de la police pour les boutons (taille 24)
-    TTF_Font *font = TTF_OpenFont("Arial.ttf", 24);
+    TTF_Font *font = TTF_OpenFont("arial.ttf", 24);
     if (!font) {
         fprintf(stderr, "Erreur lors du chargement de la police: %s\n", TTF_GetError());
         exit(1);
     }
     // Chargement de la police pour le titre (taille 48)
-    TTF_Font *fontTitle = TTF_OpenFont("Arial.ttf", 100);
+    TTF_Font *fontTitle = TTF_OpenFont("arial.ttf", 100);
     if (!fontTitle) {
         fprintf(stderr, "Erreur lors du chargement de la police pour le titre: %s\n", TTF_GetError());
         exit(1);
