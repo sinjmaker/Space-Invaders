@@ -65,7 +65,7 @@ void initPlayerShip() {
     playerShip.x = screenWidth / 2 - playerShip.width / 2;
     playerShip.y = screenHeight - playerShip.height - 10;
     playerShip.lives = MAX_PLAYER_LIVES;
-    playerShip.ecrous = 1;
+    playerShip.ecrous = 10;
 }
 
 void initCloud() {
@@ -137,7 +137,6 @@ void updateCloud() {
                 break;
 
             default:
-                // Gestion des cas non prévus (optionnel)
                 break;
         }
     }
@@ -229,10 +228,26 @@ void updateLasers() {
                 if (barriers[j].health > 0 &&
                     alienLasers[i].x < barriers[j].x + barriers[j].width &&
                     alienLasers[i].x + LASER_WIDTH > barriers[j].x &&
-                    alienLasers[i].y < barriers[j].y + barriers[j].height && // Utiliser la hauteur active
+                    alienLasers[i].y < barriers[j].y + barriers[j].height &&
                     alienLasers[i].y + LASER_HEIGHT > barriers[j].y) {
-                    alienLasers[i].active = false;  // Désactiver le tir
-                    barriers[j].health--;           // Réduire les points de vie de la barrière
+                    alienLasers[i].active = false;
+                    barriers[j].health--;
+                }
+            }
+
+            for (int j = 0; j < MAX_TURRETS; j++) {
+                if (turrets[j].active &&
+                    alienLasers[i].x < turrets[j].x + turrets[j].width &&
+                    alienLasers[i].x + LASER_WIDTH > turrets[j].x &&
+                    alienLasers[i].y < turrets[j].y + turrets[j].height &&
+                    alienLasers[i].y + LASER_HEIGHT > turrets[j].y) {
+                    alienLasers[i].active = false;
+                    turrets[j].health--;
+
+                    // Désactiver la tourelle si elle n'a plus de points de vie
+                    if (turrets[j].health <= 0) {
+                        turrets[j].active = false;
+                    }
                 }
             }
 
@@ -259,10 +274,26 @@ void updateLasers() {
             if (barriers[j].health > 0 &&
                 playerLaser.x < barriers[j].x + barriers[j].width &&
                 playerLaser.x + LASER_WIDTH > barriers[j].x &&
-                playerLaser.y < barriers[j].y + barriers[j].height && // Utiliser la hauteur active
+                playerLaser.y < barriers[j].y + barriers[j].height &&
                 playerLaser.y + LASER_HEIGHT > barriers[j].y) {
-                playerLaser.active = false;  // Désactiver le tir
-                barriers[j].health--;        // Réduire les points de vie de la barrière
+                playerLaser.active = false;
+                barriers[j].health--;
+            }
+        }
+
+        for (int j = 0; j < MAX_TURRETS; j++) {
+            if (turrets[j].active &&
+                playerLaser.x < turrets[j].x + turrets[j].width &&
+                playerLaser.x + LASER_WIDTH > turrets[j].x &&
+                playerLaser.y < turrets[j].y + turrets[j].height &&
+                playerLaser.y + LASER_HEIGHT > turrets[j].y) {
+                playerLaser.active = false;
+                turrets[j].health--;
+
+                // Désactiver la tourelle si elle n'a plus de points de vie
+                if (turrets[j].health <= 0) {
+                    turrets[j].active = false;
+                }
             }
         }
 
@@ -314,34 +345,100 @@ int toujours_vivant_toujour_la_patate() {
 }
 
 GameMode chooseGameMode(SDL_Renderer *renderer) {
+    // Initialisation de SDL_ttf
+    if (TTF_Init() == -1) {
+        fprintf(stderr, "Erreur d'initialisation de SDL_ttf: %s\n", TTF_GetError());
+        exit(1);
+    }
+    // Initialisation de SDL_mixer
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+        fprintf(stderr, "Erreur d'initialisation de SDL_mixer: %s\n", Mix_GetError());
+        exit(1);
+    }
+    // Chargement de la musique du menu
+    Mix_Music *menuMusic = Mix_LoadMUS("MusiqueMenu.mp3");
+    if (!menuMusic) {
+        fprintf(stderr, "Erreur lors du chargement de la musique: %s\n", Mix_GetError());
+        exit(1);
+    }
+    // Démarrage de la musique en boucle (-1)
+    if (Mix_PlayMusic(menuMusic, -1) == -1) {
+        fprintf(stderr, "Erreur lors de la lecture de la musique: %s\n", Mix_GetError());
+    }
+    
+    // Chargement de la police pour les boutons (taille 24)
+    TTF_Font *font = TTF_OpenFont("Arial.ttf", 24);
+    if (!font) {
+        fprintf(stderr, "Erreur lors du chargement de la police: %s\n", TTF_GetError());
+        exit(1);
+    }
+    // Chargement de la police pour le titre (taille 48)
+    TTF_Font *fontTitle = TTF_OpenFont("Arial.ttf", 100);
+    if (!fontTitle) {
+        fprintf(stderr, "Erreur lors du chargement de la police pour le titre: %s\n", TTF_GetError());
+        exit(1);
+    }
+    
+    // Création de la texture pour le titre
+    SDL_Color white = {255, 255, 255, 255};
+    SDL_Surface *titleSurface = TTF_RenderText_Blended(fontTitle, "SEAGULL INVADERS", white);
+    if (!titleSurface) {
+        fprintf(stderr, "Erreur lors du rendu du titre: %s\n", TTF_GetError());
+        exit(1);
+    }
+    SDL_Texture *titleTexture = SDL_CreateTextureFromSurface(renderer, titleSurface);
+    SDL_FreeSurface(titleSurface);
+    int titleWidth, titleHeight;
+    SDL_QueryTexture(titleTexture, NULL, NULL, &titleWidth, &titleHeight);
+    // Positionner le titre centré en haut (20 pixels du haut)
+    SDL_Rect titleRect = { (screenWidth - titleWidth) / 2, 100, titleWidth, titleHeight };
+    
     bool modeChoisi = false;
     GameMode mode = MODE_KILL_THEM_ALL;
-
     int buttonWidth = 300;
     int buttonHeight = 80;
-
-    SDL_Rect killRect;
-    killRect.w = buttonWidth;
-    killRect.h = buttonHeight;
-    killRect.x = (screenWidth / 2) - (buttonWidth / 2);
-    killRect.y = (screenHeight / 2) - 100;
-
-    SDL_Rect ffaRect;
-    ffaRect.w = buttonWidth;
-    ffaRect.h = buttonHeight;
-    ffaRect.x = (screenWidth / 2) - (buttonWidth / 2);
-    ffaRect.y = (screenHeight / 2) + 20;
-
+    
+    SDL_Rect killRect = { (screenWidth / 2) - (buttonWidth / 2), (screenHeight / 2) - 100, buttonWidth, buttonHeight };
+    SDL_Rect QuitterRect = { (screenWidth / 2) - (buttonWidth / 2), (screenHeight / 2) + 20, buttonWidth, buttonHeight };
+    
     SDL_Event event;
-
-    printf("=== MENU SIMPLE SDL2 ===\n");
-    printf("Cliquez sur le rectangle du haut pour KILL THEM ALL\n");
-    printf("Cliquez sur le rectangle du bas pour FFA\n");
+    int mouseX, mouseY;
+    
+    // Création des textures pour le texte des boutons
+    SDL_Surface *killSurface = TTF_RenderText_Blended(font, "JOUER", white);
+    if (!killSurface) {
+        fprintf(stderr, "Erreur lors du rendu du texte: %s\n", TTF_GetError());
+    }
+    SDL_Texture *killTextTexture = SDL_CreateTextureFromSurface(renderer, killSurface);
+    SDL_FreeSurface(killSurface);
+    int killTextWidth, killTextHeight;
+    SDL_QueryTexture(killTextTexture, NULL, NULL, &killTextWidth, &killTextHeight);
+    SDL_Rect killTextRect = { killRect.x + (buttonWidth - killTextWidth) / 2,
+                              killRect.y + (buttonHeight - killTextHeight) / 2,
+                              killTextWidth, killTextHeight };
+    
+    SDL_Surface *QuitterSurface = TTF_RenderText_Blended(font, "QUITTER", white);
+    if (!QuitterSurface) {
+        fprintf(stderr, "Erreur lors du rendu du texte: %s\n", TTF_GetError());
+    }
+    SDL_Texture *QuitterTextTexture = SDL_CreateTextureFromSurface(renderer, QuitterSurface);
+    SDL_FreeSurface(QuitterSurface);
+    int QuitterTextWidth, QuitterTextHeight;
+    SDL_QueryTexture(QuitterTextTexture, NULL, NULL, &QuitterTextWidth, &QuitterTextHeight);
+    SDL_Rect QuitterTextRect = { QuitterRect.x + (buttonWidth - QuitterTextWidth) / 2,
+                                 QuitterRect.y + (buttonHeight - QuitterTextHeight) / 2,
+                                 QuitterTextWidth, QuitterTextHeight };
+    
     while (!modeChoisi) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
+                Mix_HaltMusic();
+                Mix_FreeMusic(menuMusic);
+                Mix_CloseAudio();
                 SDL_Quit();
                 exit(0);
+            } else if (event.type == SDL_MOUSEMOTION) {
+                SDL_GetMouseState(&mouseX, &mouseY);
             } else if (event.type == SDL_MOUSEBUTTONDOWN) {
                 int mx = event.button.x;
                 int my = event.button.y;
@@ -349,27 +446,72 @@ GameMode chooseGameMode(SDL_Renderer *renderer) {
                     my >= killRect.y && my <= killRect.y + killRect.h) {
                     mode = MODE_KILL_THEM_ALL;
                     modeChoisi = true;
-                } else if (mx >= ffaRect.x && mx <= ffaRect.x + ffaRect.w &&
-                           my >= ffaRect.y && my <= ffaRect.y + ffaRect.h) {
-                    mode = MODE_FFA;
-                    modeChoisi = true;
+                    // Arrêter la musique lorsque le jeu commence
+                    Mix_HaltMusic();
+                    Mix_FreeMusic(menuMusic);
+                    Mix_CloseAudio();
+                } else if (mx >= QuitterRect.x && mx <= QuitterRect.x + QuitterRect.w &&
+                           my >= QuitterRect.y && my <= QuitterRect.y + QuitterRect.h) {
+                    // Arrêter la musique et quitter
+                    Mix_HaltMusic();
+                    Mix_FreeMusic(menuMusic);
+                    Mix_CloseAudio();
+                    SDL_Quit();
+                    exit(0);
                 }
             }
         }
-
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        
         SDL_RenderClear(renderer);
-
-        SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+        SDL_RenderCopy(renderer, fondTexture, NULL, NULL);
+        
+        // Affichage du titre en haut au centre
+        SDL_RenderCopy(renderer, titleTexture, NULL, &titleRect);
+        
+        bool hoverKill = false;
+        bool hoverQuitter = false;
+        SDL_GetMouseState(&mouseX, &mouseY);
+        if (mouseX >= killRect.x && mouseX <= killRect.x + killRect.w &&
+            mouseY >= killRect.y && mouseY <= killRect.y + killRect.h) {
+            hoverKill = true;
+        }
+        if (mouseX >= QuitterRect.x && mouseX <= QuitterRect.x + QuitterRect.w &&
+            mouseY >= QuitterRect.y && mouseY <= QuitterRect.y + QuitterRect.h) {
+            hoverQuitter = true;
+        }
+        
+        if (hoverKill) {
+            SDL_SetRenderDrawColor(renderer, 255, 100, 100, 255);
+        } else {
+            SDL_SetRenderDrawColor(renderer, 200, 50, 50, 255);
+        }
         SDL_RenderFillRect(renderer, &killRect);
-
-        SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
-        SDL_RenderFillRect(renderer, &ffaRect);
-
+        
+        if (hoverQuitter) {
+            SDL_SetRenderDrawColor(renderer, 100, 255, 100, 255);
+        } else {
+            SDL_SetRenderDrawColor(renderer, 50, 200, 50, 255);
+        }
+        SDL_RenderFillRect(renderer, &QuitterRect);
+        
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_RenderDrawRect(renderer, &killRect);
+        SDL_RenderDrawRect(renderer, &QuitterRect);
+        
+        SDL_RenderCopy(renderer, killTextTexture, NULL, &killTextRect);
+        SDL_RenderCopy(renderer, QuitterTextTexture, NULL, &QuitterTextRect);
+        
         SDL_RenderPresent(renderer);
         SDL_Delay(16);
     }
-
+    
+    SDL_DestroyTexture(titleTexture);
+    SDL_DestroyTexture(killTextTexture);
+    SDL_DestroyTexture(QuitterTextTexture);
+    TTF_CloseFont(font);
+    TTF_CloseFont(fontTitle);
+    TTF_Quit();
+    
     return mode;
 }
 
@@ -463,6 +605,8 @@ void reviveBarrier(int mouseX, int mouseY) {
 void initTurrets() {
     for (int i = 0; i < MAX_TURRETS; i++) {
         turrets[i].active = false;
+        turrets[i].health = 10;
+        turrets[i].existe = false;
     }
 }
 
@@ -484,18 +628,16 @@ void createTurretLaser(int x, int y) {
     }
 }
 
-void createTurret(int x, int y, int width, int height) {
-    for (int i = 0; i < MAX_TURRETS; i++) {
-        if (!turrets[i].active) {  // Trouver une tourelle inactive
-            turrets[i].x = x - width / 2;  // Centrer la tourelle sur la barrière
-            turrets[i].y = y;
-            turrets[i].width = width;      // Largeur de la barrière
-            turrets[i].height = screenHeight - y;  // Hauteur jusqu'au bas de l'écran
-            turrets[i].active = true;
-            turrets[i].lastShotTime = SDL_GetTicks();  // Initialiser le temps du dernier tir
-            break;
-        }
-    }
+void createTurret(int barrierIndex, int x, int y, int width, int height) {
+    if (barrierIndex < 0 || barrierIndex >= MAX_TURRETS) return;
+
+    turrets[barrierIndex].x = x - width / 2;
+    turrets[barrierIndex].y = y;
+    turrets[barrierIndex].width = width;
+    turrets[barrierIndex].height = screenHeight - y;
+    turrets[barrierIndex].active = true;
+    turrets[barrierIndex].lastShotTime = SDL_GetTicks();
+    turrets[barrierIndex].existe = true;
 }
 
 void updateTurrets() {
@@ -524,6 +666,9 @@ void updateTurrets() {
                     turrets[i].lastShotTime = currentTime;  // Mettre à jour le temps du dernier tir
                 }
             }
+        }
+        else if(barriers[i].health == -1 && !turrets[i].active){
+            barriers[i].health = 0;
         }
     }
 }
@@ -555,4 +700,92 @@ void updateTurretLasers() {
             }
         }
     }
+}
+
+
+void saveHighScore(const char* name, int score) {
+    FILE* file = fopen("scores.dat", "a+");
+    if (!file) return;
+
+    // Lire les scores existants
+    HighScore scores[MAX_HIGH_SCORES + 1] = {0};
+    int count = 0;
+    
+    while (count < MAX_HIGH_SCORES && fscanf(file, "%50s %d", 
+           scores[count].name, &scores[count].score) == 2) {
+        count++;
+    }
+    
+    // Ajouter le nouveau score
+    strncpy(scores[count].name, name, 50);
+    scores[count].score = score;
+    count++;
+
+    // Trier par ordre décroissant
+    for (int i = 0; i < count - 1; i++) {
+        for (int j = 0; j < count - i - 1; j++) {
+            if (scores[j].score < scores[j + 1].score) {
+                HighScore temp = scores[j];
+                scores[j] = scores[j + 1];
+                scores[j + 1] = temp;
+            }
+        }
+    }
+
+    // Réécrire les 5 premiers
+    freopen("scores.dat", "w", file);
+    for (int i = 0; i < (count > MAX_HIGH_SCORES ? MAX_HIGH_SCORES : count); i++) {
+        fprintf(file, "%s %d\n", scores[i].name, scores[i].score);
+    }
+    fclose(file);
+}
+
+void loadHighScores(HighScore scores[]) {
+    FILE* file = fopen("scores.dat", "r");
+    if (!file) return;
+
+    for (int i = 0; i < MAX_HIGH_SCORES; i++) {
+        if (fscanf(file, "%50s %d", scores[i].name, &scores[i].score) != 2) {
+            strcpy(scores[i].name, "---");
+            scores[i].score = 0;
+        }
+    }
+    fclose(file);
+}
+
+void resetGame() {
+    // Réinitialiser les aliens
+    initAliens();
+
+    // Réinitialiser le vaisseau du joueur
+    initPlayerShip();
+
+    // Réinitialiser les barrières
+    initBarriers();
+
+    // Réinitialiser les tourelles
+    initTurrets();
+
+    // Réinitialiser les lasers des tourelles
+    initTurretLasers();
+
+    // Réinitialiser le score et le round
+    score = 0;
+    currentRound = 1;
+
+    // Réinitialiser le nuage de réanimation
+    revivalCloud.active = false;
+
+    // Réinitialiser les variables de mouvement
+    direction = 1;
+    nombre = 1;
+    nombre_de_decente = 0;
+    moveDelayDynamic = MOVE_DELAY;
+    tempoMove = MOVE_DELAY;
+
+    // Réinitialiser les états de pause
+    isPaused = false;
+
+    // Réinitialiser les textures (si nécessaire)
+    // (Assurez-vous que les textures sont déjà chargées, sinon rechargez-les)
 }

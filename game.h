@@ -2,6 +2,8 @@
 #define GAME_H
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_mixer.h>
 #include <stdbool.h>
 
 #define ALIEN_ROWS 3
@@ -17,6 +19,7 @@
 #define NUM_BARRIERS 4
 #define MAX_TURRETS 4
 #define MAX_TURRET_LASERS 20
+#define MAX_HIGH_SCORES 5
 
 typedef struct {
     int x, y;
@@ -50,24 +53,31 @@ typedef enum {
 } GameMode;
 
 typedef struct {
-    int x, y;          // Position de la barrière
-    int width, height; // Taille de la zone active de la barrière (pour les collisions)
-    int visualHeight;  // Hauteur visuelle de la barrière (jusqu'au bas de l'écran)
-    int health;        // Points de vie de la barrière
+    int x, y;
+    int width, height;
+    int visualHeight;
+    int health;
 } Barrier;
 
 typedef struct {
-    int x, y;          // Position de la tourelle
-    int width, height; // Taille de la tourelle
-    bool active;       // Indique si la tourelle est active
-    Uint32 lastShotTime; // Temps du dernier tir
+    int x, y;
+    int width, height;
+    bool active;
+    Uint32 lastShotTime;
+    int health;
+    bool existe;
 } Turret;
 
 typedef struct {
-    int x, y;          // Position du laser
-    bool active;       // Indique si le laser est actif
-    int speed;         // Vitesse du laser
+    int x, y;
+    bool active;
+    int speed;
 } TurretLaser;
+
+typedef struct {
+    char name[51];
+    int score;
+} HighScore;
 
 extern Alien aliens[ALIEN_ROWS][ALIEN_COLUMNS];
 extern Laser alienLasers[ALIEN_COLUMNS];
@@ -115,10 +125,13 @@ void resetAliensForNewRound();
 void initBarriers();
 void reviveBarrier(int mouseX, int mouseY);
 void initTurrets();
-void createTurret(int x, int y, int width, int height);
+void createTurret(int barrierIndex, int x, int y, int width, int height);
 void updateTurrets();
 void initTurretLasers();
 void createTurretLaser(int x, int y);
 void updateTurretLasers();
+void saveHighScore(const char* name, int score);
+void loadHighScores(HighScore scores[]);
+void resetGame();
 
 #endif // GAME_H

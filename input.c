@@ -55,6 +55,24 @@ void handlePlayerInput(SDL_Event event) {
     }
 }
 
+void handleTextInput(SDL_Event event, char *playerName, bool *isEnterPressed) {
+    if (event.type == SDL_TEXTINPUT) {
+        // Limiter la longueur du nom à 10 caractères
+        if (strlen(playerName) < 10) {
+            strcat(playerName, event.text.text);
+        }
+    } else if (event.type == SDL_KEYDOWN) {
+        if (event.key.keysym.sym == SDLK_BACKSPACE && strlen(playerName) > 0) {
+            // Supprimer le dernier caractère
+            playerName[strlen(playerName) - 1] = '\0';
+        } else if (event.key.keysym.sym == SDLK_RETURN) {
+            // Valider la saisie uniquement si au moins un caractère a été saisi
+            if (strlen(playerName) > 0) {
+                *isEnterPressed = true;
+            }
+        }
+    }
+}
 
 void handleMouseInput(SDL_Event event) {
     if (event.type == SDL_MOUSEBUTTONDOWN && isPaused) {
@@ -64,12 +82,16 @@ void handleMouseInput(SDL_Event event) {
 
         // Réanimer la barrière si le clic est sur un carré vert
         for (int i = 0; i < NUM_BARRIERS; i++) {
-            if (barriers[i].health == 0 || barriers[i].health< -2) {
+            // Vérifier si la barrière a été remplacée par une tourelle
+            bool isTurretActive = (i < MAX_TURRETS && turrets[i].active);
+
+            // Ne gérer les clics que si la barrière est détruite et qu'il n'y a pas de tourelle active
+            if (barriers[i].health <= 0 && barriers[i].health != -1 && !isTurretActive) {
                 SDL_Rect destroyedRect = {
-                    barriers[i].x + barriers[i].width / 4,  // Position X du carré vert
-                    barriers[i].y + barriers[i].height / 4, // Position Y du carré vert
-                    barriers[i].width / 4,                 // Largeur du carré vert
-                    barriers[i].visualHeight / 2           // Hauteur du carré vert
+                    barriers[i].x + barriers[i].width / 4,
+                    barriers[i].y + barriers[i].height / 4,
+                    barriers[i].width / 4,
+                    barriers[i].visualHeight / 2
                 };
 
                 SDL_Rect blueHalf = {
@@ -80,15 +102,24 @@ void handleMouseInput(SDL_Event event) {
                 };
 
                 // Vérifier si le clic est dans le carré vert
-                if (mouseX >= destroyedRect.x && mouseX <= destroyedRect.x + destroyedRect.w && mouseY >= destroyedRect.y && mouseY <= destroyedRect.y + destroyedRect.h && playerShip.ecrous > 0) {
+                if (mouseX >= destroyedRect.x && mouseX <= destroyedRect.x + destroyedRect.w &&
+                    mouseY >= destroyedRect.y && mouseY <= destroyedRect.y + destroyedRect.h && playerShip.ecrous > 0) {
                     barriers[i].health = 10;
-                    playerShip.ecrous = playerShip.ecrous-1;
+                    playerShip.ecrous = playerShip.ecrous - 1;
                     break;
                 }
-                if (mouseX >= blueHalf.x && mouseX <= blueHalf.x + blueHalf.w && mouseY >= blueHalf.y && mouseY <= blueHalf.y + blueHalf.h && playerShip.ecrous > 2){
-                    createTurret(barriers[i].x + barriers[i].width / 2, barriers[i].y, barriers[i].width, barriers[i].height);
-                    barriers[i].health = -1;
-                    playerShip.ecrous = playerShip.ecrous-3;
+
+                // Vérifier si le clic est dans la partie bleue
+                if (mouseX >= blueHalf.x && mouseX <= blueHalf.x + blueHalf.w &&
+                    mouseY >= blueHalf.y && mouseY <= blueHalf.y + blueHalf.h && playerShip.ecrous > 2) {
+                    if (!turrets[i].existe) {
+                        createTurret(i, barriers[i].x + barriers[i].width / 2, barriers[i].y, barriers[i].width, barriers[i].height);
+                    } else {
+                        turrets[i].active = true;
+                        turrets[i].health = 10;
+                    }
+                    barriers[i].health = -1; // Marquer la barrière comme remplacée
+                    playerShip.ecrous -= 3;
                 }
             }
         }

@@ -1,8 +1,5 @@
 #include "render.h"
 
-// #include <SDL2/SDL.h>
-// #include <SDL2/SDL_ttf.h>
-
 void drawAliens(SDL_Renderer *renderer) {
     for (int i = 0; i < ALIEN_ROWS; i++) {
         for (int j = 0; j < ALIEN_COLUMNS; j++) {
@@ -88,8 +85,11 @@ void drawPauseMenu(SDL_Renderer *renderer) {
 
     // Dessiner un rectangle à moitié vert et à moitié bleu avec un "+" au milieu
     for (int i = 0; i < NUM_BARRIERS; i++) {
+        // Vérifier si la barrière a été remplacée par une tourelle
+        bool isTurretActive = (i < MAX_TURRETS && turrets[i].active);
 
-        if (barriers[i].health <= 0 && barriers[i].health != -1) {  // Barrière détruite
+        // Ne dessiner les carrés que si la barrière est détruite et qu'il n'y a pas de tourelle active
+        if (barriers[i].health <= 0 && barriers[i].health != -1 && !isTurretActive) {
             SDL_Rect destroyedRect = {
                 barriers[i].x + barriers[i].width / 4,  // Position X (centré sur la barrière)
                 barriers[i].y + barriers[i].height / 4, // Position Y (centré sur la barrière)
@@ -98,9 +98,9 @@ void drawPauseMenu(SDL_Renderer *renderer) {
             };
 
             // Dessiner la moitié gauche en vert
-            if(barriers[i].health > -11){
+            if (barriers[i].health > -11) {
                 SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-            }else if (barriers[i].health == -20){
+            } else if (barriers[i].health == -20) {
                 SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
             }
             SDL_Rect leftHalf = {
@@ -112,9 +112,9 @@ void drawPauseMenu(SDL_Renderer *renderer) {
             SDL_RenderFillRect(renderer, &leftHalf);
 
             // Dessiner la moitié droite en bleu
-            if(barriers[i].health == 0){
+            if (barriers[i].health == 0) {
                 SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-            }else if (barriers[i].health == -10 || barriers[i].health == -20){
+            } else if (barriers[i].health == -10 || barriers[i].health == -20) {
                 SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
             }
             SDL_Rect rightHalf = {
@@ -230,8 +230,8 @@ void drawScore(SDL_Renderer *renderer, TTF_Font *font) {
 
 void drawGameOverScreen(SDL_Renderer *renderer, TTF_Font *font) {
     // Effacer l'écran
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);  // Fond noir
-    SDL_RenderClear(renderer);
+    // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);  // Fond noir
+    // SDL_RenderClear(renderer);
 
     // Préparer le texte "Game Over"
     SDL_Color textColor = {255, 255, 255, 255};  // Texte blanc
@@ -296,6 +296,106 @@ void drawGameOverScreen(SDL_Renderer *renderer, TTF_Font *font) {
     // Libérer les textures
     SDL_DestroyTexture(gameOverTexture);
     SDL_DestroyTexture(scoreTexture);
+
+    // Mettre à jour l'écran
+    SDL_RenderPresent(renderer);
+}
+
+void drawTextInputScreen(SDL_Renderer *renderer, TTF_Font *font, const char *playerName, bool showError) {
+    // Effacer l'écran
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);  // Fond noir
+    SDL_RenderClear(renderer);
+
+    // Afficher le message "Entrez votre nom :"
+    SDL_Color white = {255, 255, 255, 255};
+    SDL_Surface *messageSurface = TTF_RenderText_Solid(font, "Entrez votre nom :", white);
+    if (!messageSurface) {
+        fprintf(stderr, "Erreur de création de la surface du message: %s\n", TTF_GetError());
+        return;
+    }
+
+    SDL_Texture *messageTexture = SDL_CreateTextureFromSurface(renderer, messageSurface);
+    SDL_FreeSurface(messageSurface);
+    if (!messageTexture) {
+        fprintf(stderr, "Erreur de création de la texture du message: %s\n", SDL_GetError());
+        return;
+    }
+
+    // Positionner le message au centre de l'écran
+    int messageWidth, messageHeight;
+    SDL_QueryTexture(messageTexture, NULL, NULL, &messageWidth, &messageHeight);
+    SDL_Rect messageRect = {
+        (screenWidth - messageWidth) / 2,  // Centré horizontalement
+        screenHeight / 2 - 50,             // 50 pixels au-dessus du centre
+        messageWidth,
+        messageHeight
+    };
+
+    // Dessiner le message
+    SDL_RenderCopy(renderer, messageTexture, NULL, &messageRect);
+
+    // Afficher le nom du joueur ou un texte par défaut
+    const char *displayText = (strlen(playerName) > 0) ? playerName : "...";
+    SDL_Surface *nameSurface = TTF_RenderText_Solid(font, displayText, white);
+    if (!nameSurface) {
+        fprintf(stderr, "Erreur de création de la surface du nom: %s\n", TTF_GetError());
+        SDL_DestroyTexture(messageTexture);
+        return;
+    }
+
+    SDL_Texture *nameTexture = SDL_CreateTextureFromSurface(renderer, nameSurface);
+    SDL_FreeSurface(nameSurface);
+    if (!nameTexture) {
+        fprintf(stderr, "Erreur de création de la texture du nom: %s\n", SDL_GetError());
+        SDL_DestroyTexture(messageTexture);
+        return;
+    }
+
+    // Positionner le nom du joueur en dessous du message
+    int nameWidth, nameHeight;
+    SDL_QueryTexture(nameTexture, NULL, NULL, &nameWidth, &nameHeight);
+    SDL_Rect nameRect = {
+        (screenWidth - nameWidth) / 2,  // Centré horizontalement
+        screenHeight / 2,               // Au centre vertical
+        nameWidth,
+        nameHeight
+    };
+
+    // Dessiner le nom du joueur ou le texte par défaut
+    SDL_RenderCopy(renderer, nameTexture, NULL, &nameRect);
+
+    // Afficher un message d'erreur si nécessaire
+    if (showError) {
+        SDL_Color red = {255, 0, 0, 255};  // Couleur rouge pour le message d'erreur
+        SDL_Surface *errorSurface = TTF_RenderText_Solid(font, "Veuillez entrer un nom valide !", red);
+        if (!errorSurface) {
+            fprintf(stderr, "Erreur de création de la surface d'erreur: %s\n", TTF_GetError());
+        } else {
+            SDL_Texture *errorTexture = SDL_CreateTextureFromSurface(renderer, errorSurface);
+            SDL_FreeSurface(errorSurface);
+            if (!errorTexture) {
+                fprintf(stderr, "Erreur de création de la texture d'erreur: %s\n", SDL_GetError());
+            } else {
+                // Positionner le message d'erreur en dessous du nom
+                int errorWidth, errorHeight;
+                SDL_QueryTexture(errorTexture, NULL, NULL, &errorWidth, &errorHeight);
+                SDL_Rect errorRect = {
+                    (screenWidth - errorWidth) / 2,  // Centré horizontalement
+                    nameRect.y + nameRect.h + 10,    // 10 pixels en dessous du nom
+                    errorWidth,
+                    errorHeight
+                };
+
+                // Dessiner le message d'erreur
+                SDL_RenderCopy(renderer, errorTexture, NULL, &errorRect);
+                SDL_DestroyTexture(errorTexture);
+            }
+        }
+    }
+
+    // Libérer les textures
+    SDL_DestroyTexture(messageTexture);
+    SDL_DestroyTexture(nameTexture);
 
     // Mettre à jour l'écran
     SDL_RenderPresent(renderer);
